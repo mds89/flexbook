@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-flexgym_db}
+      POSTGRES_USER: ${POSTGRES_USER:-flexgym_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - flexgym-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-flexgym_user} -d ${POSTGRES_DB:-flexgym_db}"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  backend:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-flexgym_user}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-flexgym_db}
+      JWT_SECRET: ${JWT_SECRET}
+      PORT: 5000
+      FRONTEND_URL: ${FRONTEND_URL:-https://your-domain.com}
+    networks:
+      - flexgym-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      REACT_APP_API_URL: ${BACKEND_URL:-https://api.your-domain.com}/api
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - flexgym-network
+    depends_on:
+      - backend
+
+  nginx:
+    image: nginxproxy/nginx-proxy:alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+      - ./ssl-certs:/etc/nginx/certs:ro
+      - ./nginx-vhost:/etc/nginx/vhost.d
+      - ./nginx-html:/usr/share/nginx/html
+    networks:
+      - flexgym-network
+
+volumes:
+  postgres_data:
+
+networks:
+  flexgym-network:
+    driver: bridge

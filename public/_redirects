@@ -1,0 +1,15 @@
+# Cloudflare Pages redirects for React SPA routing
+# This ensures that all routes are handled by the React app
+
+# Handle all routes by serving index.html (SPA routing)
+/*    /index.html   200
+
+# Optional: Redirect root to login (if you want a specific default)
+# /     /login      302
+
+# Security headers (optional but recommended)
+/*
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  X-XSS-Protection: 1; mode=block
+  Referrer-Policy: strict-origin-when-cross-origin
